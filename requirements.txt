@@ -1,0 +1,2 @@
+globus-sdk>=3.46
+prompt-toolkit
