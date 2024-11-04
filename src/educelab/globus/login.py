@@ -96,7 +96,7 @@ def main():
             # Check config first
             ep_uuid = config.get_endpoint(e)
             if ep_uuid is not None:
-                endpoints.append(ep_uuid)
+                endpoints.append(ep_uuid['uuid'])
                 continue
 
             # try to convert to uuid
