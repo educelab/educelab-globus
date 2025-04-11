@@ -89,20 +89,20 @@ def main():
     logger = logging.getLogger('educelab.globus.login')
 
     if args.endpoints is None:
-        endpoints = config.endpoint_uuids()
+        endpoints = set(config.endpoint_uuids())
     else:
-        endpoints = []
+        endpoints = set()
         for e in args.endpoints:
             # Check config first
             ep_uuid = config.get_endpoint(e)
             if ep_uuid is not None:
-                endpoints.append(ep_uuid['uuid'])
+                endpoints.add(ep_uuid['uuid'])
                 continue
 
             # try to convert to uuid
             try:
                 UUID(e)
-                endpoints.append(e)
+                endpoints.add(e)
             except ValueError:
                 logger.error(f'\'{e}\' is not a recognized endpoint name or '
                              f'UUID')
