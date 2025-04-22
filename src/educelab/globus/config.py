@@ -1,7 +1,7 @@
-from pathlib import Path
+import logging
 import sys
 from functools import lru_cache
-import logging
+from pathlib import Path
 from typing import List, Dict
 
 _cfg_path = Path.home() / '.globuscp' / 'config.toml'
@@ -18,19 +18,15 @@ def _load_config():
     if not has_config():
         return {}
 
-    if sys.version_info < (3, 11):
-        logger.debug('config backend: configparser')
-        import configparser
-        with _cfg_path.open('r') as f:
-            cfg = configparser.ConfigParser()
-            cfg.read_file(f)
-            cfg = {s: dict(cfg.items(s)) for s in cfg.sections()}
-
-    else:
+    if sys.version_info >= (3, 11):
         logger.debug('config backend: tomllib')
         import tomllib
-        with _cfg_path.open('rb') as f:
-            cfg = tomllib.load(f)
+    else:
+        logger.debug('config backend: tomli')
+        import tomli as tomllib
+
+    with _cfg_path.open('rb') as f:
+        cfg = tomllib.load(f)
 
     return cfg
 
