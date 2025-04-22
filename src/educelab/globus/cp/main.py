@@ -3,11 +3,30 @@ import json
 import logging
 import sys
 from datetime import datetime as dt, timezone as tz
-from pathlib import PurePath
+from pathlib import PurePosixPath, PureWindowsPath
 
 import globus_sdk
 
 import educelab.globus as globus
+
+
+def to_posix_path(path):
+    # make a path-native object
+    if '\\' in path:
+        path = PureWindowsPath(path)
+    else:
+        # nothing to do if already posix
+        return PurePosixPath(path)
+
+    # change slash direction
+    parts = [p.replace('\\', '') for p in path.parts]
+
+    # replace drive root
+    if ':' in parts[0]:
+        parts[0] = '/' + parts[0].replace(':', '')
+
+    # return as posix path
+    return PurePosixPath(*parts)
 
 
 def main():
@@ -75,8 +94,9 @@ def main():
                                  verify_checksum=args.verify)
 
     for d in args.path:
-        src_path = str(PurePath(src['basedir']) / d)
-        dst_path = str(PurePath(dst['basedir']) / d)
+        d = to_posix_path(d)
+        src_path = str(to_posix_path(src['basedir']) / d)
+        dst_path = str(to_posix_path(dst['basedir']) / d)
 
         # Check path type: 'file', 'dir', 'invalid_symlink'
         # Unix only: 'chr', 'blk', 'pipe', 'other'
