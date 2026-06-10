@@ -11,7 +11,8 @@ from educelab.globus._cli import setup_logging as _setup_logging
 _cfg_path = Path.home() / '.globuscp' / 'config.toml'
 
 
-def has_config():
+def has_config() -> bool:
+    """Return True if the user has a config file at ``~/.globuscp/config.toml``."""
     return _cfg_path.exists()
 
 
@@ -36,20 +37,40 @@ def _load_config():
 
 
 def endpoints() -> Dict:
+    """Return all configured endpoints keyed by name.
+
+    Each value is a dict containing at least ``uuid`` and optionally
+    ``basedir``. An empty dict is returned if no config file exists.
+    """
     return _load_config()
 
 
 def endpoint_names() -> List[str]:
+    """Return the list of configured endpoint names."""
     cfg = _load_config()
     return list(cfg.keys())
 
 
 def endpoint_uuids() -> List[str]:
+    """Return the list of UUIDs for all configured endpoints."""
     cfg = _load_config()
     return [c['uuid'] for c in cfg.values()]
 
 
 def get_endpoint(key: str):
+    """Return the config entry for the named endpoint, or ``None`` if missing.
+
+    Parameters
+    ----------
+    key : str
+        The endpoint name as it appears in the config file.
+
+    Returns
+    -------
+    dict or None
+        A dict with at least a ``uuid`` key (and optionally ``basedir``), or
+        ``None`` if no endpoint with that name is configured.
+    """
     cfg = _load_config()
     return cfg.get(key, None)
 

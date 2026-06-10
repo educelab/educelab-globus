@@ -116,7 +116,37 @@ def _auth_params_signature(auth_params):
 
 
 def login(endpoint_uuids, force=False, ignore_offline=False, browser=True):
-    """Login to the Globus service"""
+    """Log into Globus and return a ``TransferClient`` authorized for the
+    given endpoints.
+
+    Acquires (or refreshes) tokens, prompts for any required consents or
+    session credentials (re-running the auth flow up to five times), and
+    verifies that each endpoint is reachable via ``operation_ls``.
+
+    Parameters
+    ----------
+    endpoint_uuids : iterable of str
+        UUIDs of the Globus endpoints to authorize.
+    force : bool, optional
+        Force a new login even if cached tokens are valid. Default ``False``.
+    ignore_offline : bool, optional
+        Treat offline (``GCDisconnected``) endpoints as non-fatal. Default
+        ``False``.
+    browser : bool, optional
+        Use the local-server (browser) login flow. Automatically disabled on
+        remote/SSH sessions. Default ``True``.
+
+    Returns
+    -------
+    globus_sdk.TransferClient
+        An authorized transfer client.
+
+    Raises
+    ------
+    RuntimeError
+        If any endpoint could not be authorized after the retry budget is
+        exhausted (e.g. user did not satisfy a session requirement).
+    """
     app = _make_app(browser=browser)
     _app_login(app, force=force)
     tc = globus_sdk.TransferClient(app=app)
