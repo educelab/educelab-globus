@@ -1,0 +1,106 @@
+{
+  "tree": [
+    "README.md",
+    "notes.txt",
+    "intermediate.tar.gz",
+    "data/a.jpg",
+    "data/b.png",
+    "data/c.jpeg",
+    "data/intermediate.tar.gz",
+    "data/raw/x.tif",
+    "data/raw/y.tif",
+    "data/raw/intermediate.tar.gz",
+    "data/processed/x.jpg",
+    "data/processed/deep/z.jpg",
+    "logs/run1.log",
+    "logs/run2.log",
+    "logs/old/run0.log",
+    "scans/scan01/img.tif",
+    "scans/scan01/meta.json",
+    "scans/scan02/img.tif",
+    "scans/scan02/meta.json",
+    "scans/scan10/img.tif",
+    "empty/",
+    "build/intermediate/foo.o",
+    "a/b/c.txt",
+    "a/b/d.txt",
+    "a/c.txt",
+    "dir with space/file one.txt",
+    "weird/x[1].txt",
+    "weird/a+b.txt",
+    "weird/ver(2).txt",
+    "weird/caret^.txt"
+  ],
+  "cases": {
+    "no_filter": [],
+    "exclude_basename": ["--exclude", "intermediate.tar.gz"],
+    "exclude_ext": ["--exclude", "*.tif"],
+    "exclude_dir": ["--exclude", "raw/"],
+    "exclude_dir_name_no_slash": ["--exclude", "data"],
+    "exclude_anchored_dir": ["--exclude", "/data/raw/"],
+    "exclude_anchored_file": ["--exclude", "/intermediate.tar.gz"],
+    "exclude_unanchored_path": ["--exclude", "b/c.txt"],
+    "exclude_star": ["--exclude", "*"],
+    "exclude_doublestar_dir": ["--exclude", "/data/**"],
+    "include_ext": ["--include", "*.jpg"],
+    "include_ext_braces": ["--include", "*.{jpg,png}"],
+    "include_nested_braces": ["--include", "*.{j{pg,peg},png}"],
+    "include_anchored_file": ["--include", "/a/b/c.txt"],
+    "include_doublestar_dir": ["--include", "/scans/**"],
+    "include_dir_slash": ["--include", "scans/"],
+    "include_doublestar_middle": ["--include", "/data/**/*.jpg"],
+    "include_question": ["--include", "scan0?/**"],
+    "include_brackets": ["--include", "scan[01][0-9]/img.tif"],
+    "include_regex": ["--include", "{{scan\\d+}}/meta.json"],
+    "include_escape": ["--include", "x\\[1\\].txt"],
+    "include_special_chars": ["--include", "a+b.txt", "--include", "ver(2).txt", "--include", "caret^.txt"],
+    "include_space": ["--include", "dir with space/*"],
+    "exclude_bracket_negate": ["--exclude", "run[^0].log"],
+    "exclude_regex_in_glob": ["--exclude", "*.{{t[a-z]+f}}"],
+    "filter_subdirs_and_exclude": [
+      "--filter", "- intermediate.tar.gz",
+      "--filter", "+ /data/**",
+      "--filter", "+ /scans/**",
+      "--filter", "- **"
+    ],
+    "filter_first_match": ["--filter", "+ data/raw/x.tif", "--filter", "- *.tif"],
+    "filter_clear": ["--filter", "- *.jpg", "--filter", "!", "--filter", "- *.png"],
+    "filter_dir_include_then_star": ["--filter", "+ /logs/", "--filter", "- *"],
+    "filter_include_dir_then_exclude_all": ["--filter", "+ /a/b/", "--filter", "- **"],
+    "flags_include_and_exclude": ["--include", "*.jpg", "--exclude", "processed/**"],
+    "flags_exclude_before_include": ["--exclude", "*.jpg", "--include", "data/**"],
+    "flags_filter_and_include": ["--filter", "- *.png", "--include", "/data/**"],
+    "filter_from": {
+      "args": ["--filter-from", "{tmp}/rules.txt"],
+      "files": {
+        "rules.txt": "# comment\n; also a comment\n\n- intermediate.tar.gz\n  + /data/**  \n- **\n"
+      }
+    },
+    "include_from": {
+      "args": ["--include-from", "{tmp}/inc.txt"],
+      "files": {"inc.txt": "*.json\n# skip\n/logs/*.log\n"}
+    },
+    "exclude_from": {
+      "args": ["--exclude-from", "{tmp}/exc.txt"],
+      "files": {"exc.txt": "*.tif\nraw/\n"}
+    },
+    "files_from": {
+      "args": ["--files-from", "{tmp}/list.txt"],
+      "files": {"list.txt": "# files\n/data/a.jpg\nscans/scan01/meta.json\n\nlogs/old/run0.log\ndoes/not/exist.txt\n"}
+    },
+    "files_from_after_clear": {
+      "args": ["--filter", "- *.jpg", "--filter", "!", "--files-from", "{tmp}/list.txt"],
+      "files": {"list.txt": "a/c.txt\n"}
+    },
+    "error_files_from_with_include": {
+      "args": ["--include", "*.jpg", "--files-from", "{tmp}/list.txt"],
+      "files": {"list.txt": "data/a.jpg\n"}
+    },
+    "error_malformed_rule": ["--filter", "foo"],
+    "error_mismatched_bracket": ["--include", "[abc"],
+    "error_mismatched_close_bracket": ["--include", "abc]"],
+    "error_mismatched_brace": ["--include", "{a,b"],
+    "error_too_many_stars": ["--include", "***"],
+    "error_unclosed_regex": ["--include", "{{abc"]
+  }
+}
