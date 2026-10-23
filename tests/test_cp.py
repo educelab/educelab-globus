@@ -153,10 +153,16 @@ class TestMain:
         assert [i['source_path'] for i in tx['DATA']] == [
             f'{SRC}/logs/run1.log']
 
-    def test_nothing_matched_skips_submit(self, run_cp):
+    def test_nothing_matched_skips_submit(self, run_cp, capsys):
         tc = run_cp('--include', '/missing/x')
         assert DST in tc.existing
         assert tc.submitted == []
+        assert 'no files match the filters' in capsys.readouterr().err
+
+    def test_dry_run_short_flag(self, run_cp, capsys):
+        tc = run_cp('-n', '--include', '/PHerc000*/PGS/**')
+        assert tc.submitted == []
+        assert 'Transfer items (0' in capsys.readouterr().out
 
     def test_dry_run_changes_nothing(self, run_cp, capsys):
         tc = run_cp('--dry-run', '--include', '/a/b/c.txt')

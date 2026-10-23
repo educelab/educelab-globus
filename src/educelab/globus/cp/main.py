@@ -113,7 +113,7 @@ def main():
                               'transfer all files unconditionally')
     add_filter_arguments(parser)
     dry_opts = parser.add_mutually_exclusive_group()
-    dry_opts.add_argument('--dry-run', action='store_true',
+    dry_opts.add_argument('--dry-run', '-n', action='store_true',
                           help='Print the transfer plan (Globus filter rules, '
                                'directories to create, transfer items) and '
                                'exit without changing anything')
@@ -216,6 +216,9 @@ def main():
     else:
         plan = Plan(items=[(src_path, dst_path, False)])
 
+    if not plan.items:
+        logger.warning('no files match the filters; check them with '
+                       '--dry-run-files')
     if args.dry_run:
         print(format_plan(plan, limit=None if args.verbose else 20))
         return
@@ -228,8 +231,8 @@ def main():
         logger.error(f'failed to create destination directory: {e.message}')
         sys.exit(1)
     if not plan.items:
-        logger.info(f'no files matched the filters; created '
-                    f'{len(plan.mkdirs)} empty directories')
+        logger.info(f'created {len(plan.mkdirs)} empty directories; '
+                    f'nothing to transfer')
         return
 
     # build the transfer task

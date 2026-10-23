@@ -94,7 +94,7 @@ Options
 ``--notify-inactive`` / ``--no-notify-inactive``
     Send (or suppress) the "inactive" notification email. Default: send.
 
-``--dry-run``
+``--dry-run``, ``-n``
     Log in, list the source as far as the filters need, and print the
     transfer plan: Globus filter rules, directories to create and transfer
     items. Nothing is created or submitted. Lists are shortened unless
@@ -148,6 +148,11 @@ first match wins. As in rclone, the flags are applied in a fixed order no
 matter how they appear on the command line: ``--include``, ``--exclude``,
 then ``--filter`` rules. Using ``--filter`` alone is clearest. Filters
 cannot be used when the source is a single file.
+
+A rule ending in ``/`` (``+ PGS/``) only matches directories, and only
+ones the walk reaches: it doesn't make parent directories get walked, and
+``- *`` excludes every directory. To copy whole subdirectories, include
+their contents instead, e.g. ``--include '/PHerc*/PGS/**'``.
 
 Basename-only rules such as ``- *.tmp`` or ``- cache/`` are passed to
 Globus and need no listing. Rules that depend on the path, like
