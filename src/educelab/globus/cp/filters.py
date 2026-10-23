@@ -164,17 +164,6 @@ def glob_to_dir_globs(glob):
     return out
 
 
-@dataclass
-class Rule:
-    """A single user-supplied ``+``/``-`` rule, before rclone's expansion into
-    file and directory matchers."""
-    include: bool
-    glob: str
-
-    def __str__(self):
-        return f'{"+" if self.include else "-"} {self.glob}'
-
-
 def _expand_braces(pattern):
     """Expand ``{a,b}`` alternations (brackets are opaque). Returns None on
     unbalanced braces."""
@@ -392,11 +381,11 @@ class Filter:
     """
 
     def __init__(self):
-        self.rules = []
         self._file_rules = _Rules()
         self._dir_rules = _Rules()
         self.files = None
         self._dirs = None
+        self._file_parents = None
 
     @classmethod
     def from_options(cls, *, include=(), include_from=(), exclude=(),
@@ -408,6 +397,9 @@ class Filter:
         includes, excludes, then filter rules, then an implicit ``- /**``
         if any include rule was given.
         """
+        if [*include_from, *exclude_from, *filter_from,
+                *files_from].count('-') > 1:
+            raise FilterError('only one -from option can read from stdin')
         f = cls()
         include = list(include) + [line for path in include_from
                                    for line in read_lines(path)]
@@ -434,6 +426,7 @@ class Filter:
                     'it should be used alone')
             f.files = set()
             f._dirs = set()
+            f._file_parents = set()
             for path in files_from:
                 for line in read_lines(path):
                     f.add_file(line)
@@ -457,7 +450,6 @@ class Filter:
     def add(self, include, glob):
         is_dir_rule = glob.endswith('/')
         is_file_rule = not is_dir_rule
-        rule = Rule(include, glob)
         # Excluding "dir/" is the same as excluding "dir/**"
         if is_dir_rule and not include:
             glob += '**'
@@ -473,7 +465,6 @@ class Filter:
                         self._dir_rules.add(include, dir_glob)
         if is_dir_rule:
             self._dir_rules.add(include, glob)
-        self.rules.append(rule)
 
     def add_rule(self, rule):
         """Add a ``+ glob``, ``- glob`` or ``!`` (clear) rule."""
@@ -489,11 +480,11 @@ class Filter:
     def add_file(self, path):
         path = path.strip('/')
         self.files.add(path)
+        self._file_parents.add(posixpath.dirname(path))
         while (path := posixpath.dirname(path)) and path not in self._dirs:
             self._dirs.add(path)
 
     def clear(self):
-        self.rules.clear()
         self._file_rules.clear()
         self._dir_rules.clear()
 
@@ -593,7 +584,7 @@ class Filter:
         included."""
         path = path.strip('/')
         if self.files is not None:
-            return any(posixpath.dirname(f) == path for f in self.files)
+            return path in self._file_parents
         components = _components(path)
         for include, _, glob in self._file_rules.rules:
             tokens = _glob_tokens(glob, 'file')

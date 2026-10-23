@@ -263,6 +263,10 @@ def main():
     except globus_sdk.TransferAPIError as e:
         logger.error(f'failed to submit transfer task '
                      f'({len(plan.items)} items): {e.message}')
+        if plan.walk_reasons:
+            logger.error(f'files were listed individually because of: '
+                         f'{", ".join(plan.walk_reasons)}; check the plan '
+                         f'with --dry-run')
         sys.exit(1)
     task_id = task['task_id']
     logger.info(f'successfully submitted transfer task: {task_id}')

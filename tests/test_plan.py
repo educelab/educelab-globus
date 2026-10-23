@@ -23,7 +23,7 @@ def simulate_globus(plan):
 
     def included(name, entry_type):
         for pattern, method, rule_type in plan.filter_rules:
-            if rule_type in (None, entry_type) and fnmatchcase(name, pattern):
+            if rule_type == entry_type and fnmatchcase(name, pattern):
                 return method == 'include'
         return True
 
@@ -245,6 +245,14 @@ class TestMkdirP:
             mkdir_p(tc, EP, ['/d', '/d/a', '/d/a/b'])
         assert tc.mkdirs == ['/d', '/d/a']
 
+    def test_persistent_not_found_raises(self):
+        err = api_error('NotFound', 'Path not found', 404)
+        tc = FakeTransferClient(existing={'/', '/d'},
+                                mkdir_errors={'/d/a': err})
+        with pytest.raises(globus_sdk.TransferAPIError):
+            mkdir_p(tc, EP, ['/d/a'])
+        assert tc.mkdirs == ['/d/a', '/d', '/d/a']
+
     def test_not_found_at_root_raises(self):
         err = api_error('NotFound', 'Path not found', 404)
         tc = FakeTransferClient(mkdir_errors={'/': err, '/d': err})
@@ -256,12 +264,13 @@ def test_add_to_transfer():
     tx = globus_sdk.TransferData(source_endpoint='a', destination_endpoint='b')
     Plan(items=[('/s', '/d', True), ('/s/f', '/d/f', False)],
          filter_rules=[('*.tmp', 'exclude', 'file'),
-                       ('*', 'exclude', None)]).add_to_transfer(tx)
+                       ('raw', 'exclude', 'dir')]).add_to_transfer(tx)
     rules = [{k: v for k, v in r.items() if v is not globus_sdk.MISSING}
              for r in tx['filter_rules']]
     assert rules == [
         {'DATA_TYPE': 'filter_rule', 'name': '*.tmp', 'method': 'exclude',
          'type': 'file'},
-        {'DATA_TYPE': 'filter_rule', 'name': '*', 'method': 'exclude'}]
+        {'DATA_TYPE': 'filter_rule', 'name': 'raw', 'method': 'exclude',
+         'type': 'dir'}]
     assert [(i['source_path'], i['recursive']) for i in tx['DATA']] == [
         ('/s', True), ('/s/f', False)]

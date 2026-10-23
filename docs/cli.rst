@@ -138,9 +138,9 @@ meaning:
     Copy only the listed files (paths relative to the source). It can't be
     combined with other filter flags.
 
-``-from`` files take one entry per line, and ``-`` reads from stdin. Blank
-lines and lines starting with ``#`` or ``;`` are ignored. Each flag can be
-repeated.
+``-from`` files take one entry per line, and ``-`` reads from stdin (for at
+most one ``-from`` flag). Blank lines and lines starting with ``#`` or ``;``
+are ignored. Each flag can be repeated.
 
 Patterns are matched against paths relative to the source directory, so a
 leading ``/`` anchors a pattern there. Rules are checked in order and the

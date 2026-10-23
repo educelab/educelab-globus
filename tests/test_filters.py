@@ -89,12 +89,19 @@ def test_negated_class_excludes_slash():
     assert filt.include_file('a/b')
 
 
-def test_rules_track_clear():
+def test_clear_drops_earlier_rules():
     filt = build_filter(['--filter', '- *.jpg', '--filter', '!',
                          '--filter', '- *.png'])
-    assert [str(r) for r in filt.rules] == ['- *.png']
+    assert filt.include_file('a.jpg')
+    assert not filt.include_file('a.png')
 
 
 def test_include_adds_implicit_exclude():
     filt = build_filter(['--include', '*.jpg'])
-    assert [str(r) for r in filt.rules] == ['+ *.jpg', '- /**']
+    assert filt.include_file('d/a.jpg')
+    assert not filt.include_file('d/a.png')
+
+
+def test_stdin_read_once():
+    with pytest.raises(FilterError, match='stdin'):
+        build_filter(['--filter-from', '-', '--files-from', '-'])
