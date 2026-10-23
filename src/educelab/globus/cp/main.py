@@ -11,6 +11,10 @@ import globus_sdk
 
 import educelab.globus as globus
 from educelab.globus._cli import setup_logging
+from educelab.globus.cp.filters import (Filter, FilterError,
+                                        add_filter_arguments)
+from educelab.globus.cp.plan import (Plan, build_plan, format_plan, mkdir_p,
+                                     walk_files)
 
 
 def to_posix_path(path):
@@ -107,6 +111,16 @@ def main():
                               'size (size differs), mtime (dst older than '
                               'src), checksum (checksums differ). Default: '
                               'transfer all files unconditionally')
+    add_filter_arguments(parser)
+    dry_opts = parser.add_mutually_exclusive_group()
+    dry_opts.add_argument('--dry-run', '-n', action='store_true',
+                          help='Print the transfer plan (Globus filter rules, '
+                               'directories to create, transfer items) and '
+                               'exit without changing anything')
+    dry_opts.add_argument('--dry-run-files', action='store_true',
+                          help='List every source file the filters include, '
+                               'with a count and total size, and exit. Lists '
+                               'the whole filtered source tree')
     log_opts = parser.add_mutually_exclusive_group()
     log_opts.add_argument('--verbose', '-v', action='store_true',
                           help='Enable debug logging')
@@ -116,6 +130,11 @@ def main():
 
     setup_logging(verbose=args.verbose, quiet=args.quiet)
     logger = logging.getLogger(__name__)
+
+    try:
+        filt = Filter.from_args(args)
+    except FilterError as e:
+        parser.error(str(e))
 
     valid_endpoints = globus.endpoint_names()
 
@@ -166,20 +185,55 @@ def main():
         else:
             logger.error(f'error accessing source path: {e.message}')
         sys.exit(1)
-    pathtype = stat.get('type')
-    recursive = pathtype == 'dir'
+    recursive = stat.get('type') == 'dir'
+    if filt.active and not recursive:
+        logger.error(f'filters require a directory source: {src_path}')
+        sys.exit(1)
 
-    # ensure the destination directory (or parent, for file transfers) exists
-    mkdir_path = dst_path if recursive else str(PurePosixPath(dst_path).parent)
-    logger.debug(f'ensuring destination directory exists: {mkdir_path}')
-    try:
-        tc.operation_mkdir(dst['uuid'], mkdir_path)
-    except globus_sdk.TransferAPIError as e:
-        if 'Exists' in (e.code or '') or 'exist' in (e.message or '').lower():
-            pass
-        else:
-            logger.error(f'failed to create destination directory: {e.message}')
+    if args.dry_run_files:
+        try:
+            files = (walk_files(tc, src['uuid'], src_path, filt) if recursive
+                     else [(PurePosixPath(src_path).name,
+                            stat.get('size') or 0)])
+        except globus_sdk.TransferAPIError as e:
+            logger.error(f'error listing source: {e.message}')
             sys.exit(1)
+        for path, _ in files:
+            print(path)
+        print(f'{len(files)} files, '
+              f'{_fmt_bytes(sum(size for _, size in files))}')
+        return
+
+    # work out transfer items and the destination directories they need
+    if recursive:
+        if filt.active:
+            logger.info('planning filtered transfer...')
+        try:
+            plan = build_plan(tc, src['uuid'], src_path, dst_path, filt)
+        except globus_sdk.TransferAPIError as e:
+            logger.error(f'error listing source: {e.message}')
+            sys.exit(1)
+    else:
+        plan = Plan(items=[(src_path, dst_path, False)])
+
+    if not plan.items:
+        logger.warning('no files match the filters; check them with '
+                       '--dry-run-files')
+    if args.dry_run:
+        print(format_plan(plan, limit=None if args.verbose else 20))
+        return
+
+    # Globus creates the parents of transfer items; only dirs left empty by
+    # the filters need creating here
+    try:
+        mkdir_p(tc, dst['uuid'], plan.mkdirs)
+    except globus_sdk.TransferAPIError as e:
+        logger.error(f'failed to create destination directory: {e.message}')
+        sys.exit(1)
+    if not plan.items:
+        logger.info(f'created {len(plan.mkdirs)} empty directories; '
+                    f'nothing to transfer')
+        return
 
     # build the transfer task
     label = args.label
@@ -197,15 +251,22 @@ def main():
                                  notify_on_inactive=args.notify_inactive,
                                  verify_checksum=args.verify)
 
-    logger.debug(f'{src_path} -> {dst_path} (recursive: {recursive})')
-    tx.add_item(src_path, dst_path, recursive=recursive)
+    logger.debug(f'{src_path} -> {dst_path} (recursive: {recursive}, '
+                 f'{len(plan.items)} items, '
+                 f'{len(plan.filter_rules)} filter rules)')
+    plan.add_to_transfer(tx)
 
     # queue the transfer task
     logger.info('submitting transfer task...')
     try:
         task = tc.submit_transfer(tx)
     except globus_sdk.TransferAPIError as e:
-        logger.error(f'failed to submit transfer task: {e.message}')
+        logger.error(f'failed to submit transfer task '
+                     f'({len(plan.items)} items): {e.message}')
+        if plan.walk_reasons:
+            logger.error(f'files were listed individually because of: '
+                         f'{", ".join(plan.walk_reasons)}; check the plan '
+                         f'with --dry-run')
         sys.exit(1)
     task_id = task['task_id']
     logger.info(f'successfully submitted transfer task: {task_id}')

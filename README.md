@@ -112,6 +112,13 @@ el-globus-cp --verify src:data/ dst:data/
 
 # Background mode: exit immediately after submitting the transfer
 el-globus-cp --background src:data/ dst:data/
+
+# rclone-style filters: copy two subdirectories, skipping intermediate files
+el-globus-cp --filter '- intermediate.tar.gz' --filter '+ /scan01/**' \
+             --filter '+ /scan02/**' --filter '- **' src:data/ dst:data/
+
+# Show what a filtered transfer would do without submitting it
+el-globus-cp --dry-run --exclude '*.tmp' src:data/ dst:data/
 ```
 
 All commands accept `--verbose`/`-v` and `--quiet`/`-q` to control log output.
